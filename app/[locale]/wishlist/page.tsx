@@ -2,8 +2,6 @@ import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import WishlistContent from '@/app/components/wishlist/wishlist-content';
-import { hasUserUsedInviteCode } from '@/app/lib/supabase/invite-codes';
-import { getCurrentUser } from '@/app/lib/server';
 
 interface WishlistPageProps {
   params: Promise<{
@@ -14,7 +12,7 @@ interface WishlistPageProps {
 export async function generateMetadata({ params }: WishlistPageProps) {
   const { locale } = await params;
   const t = await getTranslations('wishlist');
-  
+
   return {
     title: t('title'),
   };
@@ -23,25 +21,23 @@ export async function generateMetadata({ params }: WishlistPageProps) {
 export default async function WishlistPage({ params }: WishlistPageProps) {
   const { locale } = await params;
   const supabase = await createClient();
-  
-  const { data: { user }, error } = await supabase.auth.getUser();
-  
-  if (error || !user) {
+
+  const { data: { session } } = await supabase.auth.getSession();
+
+  const isExpired = !session || (session.expires_at! * 1000 < Date.now());
+
+  if (isExpired) {
+    console.log("Session is expired or not present");
     redirect(`/${locale}/login`);
+  } else {
+    console.log("User is still authenticated");
   }
-  
-  // Get current user with auth_id for checking invite code
-  const currentUser = await getCurrentUser();
-  
-  // Check if the user has activated an invite code
-  let hasActivatedInviteCode = false;
-  if (currentUser && currentUser.auth_id) {
-    hasActivatedInviteCode = await hasUserUsedInviteCode(currentUser.auth_id);
-  }
-  
-  return <WishlistContent 
-    userId={user.id} 
-    locale={locale} 
-    hasActivatedInviteCode={hasActivatedInviteCode} 
+
+  const user = session?.user!;
+
+  return <WishlistContent
+    userId={user.id}
+    locale={locale}
+    hasActivatedInviteCode={true}
   />;
 } 

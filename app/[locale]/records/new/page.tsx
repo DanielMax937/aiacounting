@@ -1,5 +1,6 @@
 import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
-import { getCurrentUser } from '@/app/lib/server';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/app/lib/supabase/server';
 import { MoneyForm } from '@/app/components/records/money-form';
 
 interface NewRecordPageProps {
@@ -16,7 +17,20 @@ export default async function NewRecordPage({ params }: NewRecordPageProps) {
   const t = await getTranslations('records');
   
   // Get the current user
-  const user = await getCurrentUser();
+  const supabase = await createClient();
+
+  const { data: { session } } = await supabase.auth.getSession();
+
+  const isExpired = !session || (session.expires_at! * 1000 < Date.now());
+
+  if (isExpired) {
+    console.log("Session is expired or not present");
+    redirect(`/${locale}/login`);
+  } else {
+    console.log("User is still authenticated");
+  }
+
+  const user = session?.user!;
   
   // Only pass the user ID to the client component to avoid serialization issues
   const userId = user?.id || null;

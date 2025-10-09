@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -11,10 +11,6 @@ import { RecentRecords } from './recent-records';
 import { ImageUpload } from './image-upload';
 // import { AndroidWebViewDemo } from './android-webview-demo';
 
-interface HomeContentProps {
-  userId: string | null;
-}
-
 interface RecordItem {
   id: string;
   user_id: string;
@@ -24,7 +20,26 @@ interface RecordItem {
   created_at: string;
 }
 
-export function HomeContent({ userId }: HomeContentProps) {
+interface UserInfo {
+  id: string;
+  email?: string;
+  user_metadata?: any;
+}
+
+interface SessionInfo {
+  user: UserInfo | null;
+  expires_at?: number;
+  access_token?: string;
+}
+
+export function HomeContent() {
+  // Performance optimizations:
+  // 1. Session info caching to reduce auth API calls
+  // 2. Session expiration checking with 5-minute buffer
+  // 3. Memoized calculations for today's totals
+  // 4. Periodic session validation to handle token refresh
+  // 5. User ID resolution entirely from session (no props needed)
+  
   const t = useTranslations('home');
   const pathname = usePathname();
   const router = useRouter();
@@ -38,7 +53,8 @@ export function HomeContent({ userId }: HomeContentProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreRecords, setHasMoreRecords] = useState(true);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(!!userId);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
   const recordsContainerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number | null>(null);
   const loadingMoreRef = useRef<HTMLDivElement>(null);
@@ -46,23 +62,76 @@ export function HomeContent({ userId }: HomeContentProps) {
   const pageSize = 20;
   const supabase = createClient();
   
+  // Helper function to check if session is expired
+  const isSessionExpired = useCallback((sessionInfo: SessionInfo | null): boolean => {
+    if (!sessionInfo?.expires_at) return true;
+    
+    // Check if session expires within the next 5 minutes (300 seconds)
+    const currentTime = Math.floor(Date.now() / 1000);
+    const bufferTime = 300; // 5 minutes buffer
+    
+    return sessionInfo.expires_at <= (currentTime + bufferTime);
+  }, []);
+  
+  // Enhanced authentication check with session info caching
+  const checkAuthWithSessionInfo = useCallback(async (): Promise<SessionInfo | null> => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Error getting session:', error);
+        return null;
+      }
+      
+      if (!session) {
+        return null;
+      }
+      
+      const sessionInfo: SessionInfo = {
+        user: {
+          id: session.user.id,
+          email: session.user.email,
+          user_metadata: session.user.user_metadata
+        },
+        expires_at: session.expires_at,
+        access_token: session.access_token
+      };
+      
+      return sessionInfo;
+    } catch (error) {
+      console.error('Exception checking auth:', error);
+      return null;
+    }
+  }, [supabase]);
+  
   // Check authentication status
   useEffect(() => {
     async function checkAuth() {
       setIsCheckingAuth(true);
       
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setIsAuthenticated(!!session);
+        // If we have cached session info and it's not expired, use it
+        if (sessionInfo && !isSessionExpired(sessionInfo)) {
+          setIsAuthenticated(true);
+          setIsCheckingAuth(false);
+          return;
+        }
         
-        // If we have a userId from props but no session, refresh the page
-        // This can happen when the server thinks we're logged in but the client session is missing
-        if (userId && !session) {
+        // Otherwise, fetch fresh session info
+        const freshSessionInfo = await checkAuthWithSessionInfo();
+        setSessionInfo(freshSessionInfo);
+        
+        const isAuth = freshSessionInfo && !isSessionExpired(freshSessionInfo);
+        setIsAuthenticated(!!isAuth);
+        
+        // If session is invalid, redirect to login
+        if (freshSessionInfo && !isAuth) {
           router.refresh();
         }
       } catch (error) {
         console.error('Error checking auth:', error);
         setIsAuthenticated(false);
+        setSessionInfo(null);
       } finally {
         setIsCheckingAuth(false);
       }
@@ -71,46 +140,84 @@ export function HomeContent({ userId }: HomeContentProps) {
     checkAuth();
     
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
-        setIsAuthenticated(true);
+        const freshSessionInfo = await checkAuthWithSessionInfo();
+        setSessionInfo(freshSessionInfo);
+        setIsAuthenticated(!!freshSessionInfo);
         router.refresh();
       } else if (event === 'SIGNED_OUT') {
+        setSessionInfo(null);
         setIsAuthenticated(false);
         router.refresh();
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Update session info when token is refreshed
+        const freshSessionInfo = await checkAuthWithSessionInfo();
+        setSessionInfo(freshSessionInfo);
+        setIsAuthenticated(!!freshSessionInfo);
       }
     });
     
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, userId, router]);
+  }, [supabase, router, isSessionExpired, checkAuthWithSessionInfo]);
   
-  // Get current date in ISO format
-  const current = new Date();
-  const timestamp = current.toISOString();
-  const todayDate = timestamp.slice(0, 10);
+  // Periodic session validation (every 5 minutes)
+  useEffect(() => {
+    if (!isAuthenticated || !sessionInfo) return;
+    
+    const intervalId = setInterval(async () => {
+      if (isSessionExpired(sessionInfo)) {
+        // Session is expired or about to expire, refresh it
+        const freshSessionInfo = await checkAuthWithSessionInfo();
+        setSessionInfo(freshSessionInfo);
+        
+        if (!freshSessionInfo || isSessionExpired(freshSessionInfo)) {
+          setIsAuthenticated(false);
+          router.push(`/${locale}/login`);
+        }
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+    
+    return () => clearInterval(intervalId);
+  }, [isAuthenticated, sessionInfo, isSessionExpired, checkAuthWithSessionInfo, router, locale]);
   
-  // Filter today's records
-  const todayRecordList = recordList.filter(item => 
-    item.created_at.includes(todayDate)
+  // Memoized today's date calculation
+  const todayDate = useMemo(() => {
+    const current = new Date();
+    const timestamp = current.toISOString();
+    return timestamp.slice(0, 10);
+  }, []);
+  
+  // Memoized today's records filter
+  const todayRecordList = useMemo(() => 
+    recordList.filter(item => item.created_at.includes(todayDate)),
+    [recordList, todayDate]
   );
   
-  // Calculate today's income
-  const todayTotalIncome = todayRecordList.reduce((total, item) =>
-    item.category === 'income' ? 
-    total.plus(item.amount) : 
-    total, new Decimal(0)).toNumber();
+  // Memoized today's income calculation
+  const todayTotalIncome = useMemo(() => 
+    todayRecordList.reduce((total, item) =>
+      item.category === 'income' ? 
+      total.plus(item.amount) : 
+      total, new Decimal(0)).toNumber(),
+    [todayRecordList]
+  );
   
-  // Calculate today's expenses
-  const todayTotalCost = todayRecordList.reduce((total, item) =>
-    item.category === 'cost' ?
-    total.plus(item.amount) : 
-    total, new Decimal(0)).toNumber();
+  // Memoized today's expenses calculation
+  const todayTotalCost = useMemo(() => 
+    todayRecordList.reduce((total, item) =>
+      item.category === 'cost' ?
+      total.plus(item.amount) : 
+      total, new Decimal(0)).toNumber(),
+    [todayRecordList]
+  );
   
   // Fetch records function
   const fetchRecords = useCallback(async (isInitial = true) => {
-    if (!userId || !isAuthenticated) {
+    // Use session info for more reliable authentication check
+    if (!sessionInfo?.user?.id || !isAuthenticated || isSessionExpired(sessionInfo)) {
       if (isInitial) setIsLoading(false);
       return;
     }
@@ -126,7 +233,7 @@ export function HomeContent({ userId }: HomeContentProps) {
       let query = supabase
         .from('records')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', sessionInfo.user.id)
         .order('created_at', { ascending: false })
         .limit(pageSize);
       
@@ -168,7 +275,7 @@ export function HomeContent({ userId }: HomeContentProps) {
         setIsLoadingMore(false);
       }
     }
-  }, [userId, supabase, isAuthenticated]);
+  }, [sessionInfo, isAuthenticated, isSessionExpired, supabase]);
   
   // Initial fetch of records
   useEffect(() => {
@@ -284,7 +391,7 @@ export function HomeContent({ userId }: HomeContentProps) {
           </div>
         
         {/* Image Upload Component */}
-        { userId && <ImageUpload userId={userId} /> }
+        { sessionInfo?.user?.id && <ImageUpload userId={sessionInfo.user.id} /> }
         </div>
         
         {/* Records section - can expand to full screen on swipe up */}

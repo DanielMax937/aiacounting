@@ -1,5 +1,4 @@
 import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
-import { getCurrentUser } from '@/app/lib/server';
 import { HomeContent } from '@/app/components/home/home-content';
 import { Metadata } from 'next';
 
@@ -45,15 +44,11 @@ export default async function HomePage({ params }: HomePageProps) {
   // Use getTranslations instead of useTranslations for server components
   const t = await getTranslations('home');
   
-  // Get the current user
-  const user = await getCurrentUser();
-  
-  // Only pass the user ID to the client component to avoid serialization issues
-  const userId = user?.id || null;
+  // HomeContent now gets user info from session, no need to pass user data
 
   return (
     <div className="flex flex-col items-center px-4 py-8">
-      <HomeContent userId={userId} />
+      <HomeContent />
     </div>
   );
 } 
