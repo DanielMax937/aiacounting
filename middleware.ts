@@ -12,10 +12,14 @@ const intlMiddleware = createMiddleware({
 
 // Define public paths that don't require authentication
 const publicPaths = ['/login', '/auth/callback', '/terms', '/privacy'];
+const crawlerFiles = ['/robots.txt', '/llms.txt', '/sitemap.xml'];
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  if(pathname.includes('googledbc7bada3b49d51f.html') || pathname.includes('sitemap.xml')) {
+  if (
+    crawlerFiles.includes(pathname) ||
+    pathname.includes('googledbc7bada3b49d51f.html')
+  ) {
     return NextResponse.next();
   }
   // First, handle internationalization
@@ -45,6 +49,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Match all paths except static files, api routes, and _next
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|llms.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}; 
+};
