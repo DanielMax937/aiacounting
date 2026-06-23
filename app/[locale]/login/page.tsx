@@ -1,7 +1,7 @@
 import { LoginForm } from '@/app/components/auth/login-form';
 import { ResponsiveHome } from '@/app/components/responsive-home';
 import { LanguageSwitcher } from '@/app/components/language-switcher';
-import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { TermsAgreementCheckbox } from '@/app/components/auth/terms-agreement-checkbox';
 
@@ -17,7 +17,7 @@ export default async function LoginPage({
   // In Next.js 15, we need to await the params
   const { locale } = await params;
   
-  unstable_setRequestLocale(locale);
+  setRequestLocale(locale);
   
   // Use getTranslations instead of useTranslations for server components
   const t = await getTranslations('auth');

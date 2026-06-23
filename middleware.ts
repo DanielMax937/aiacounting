@@ -4,9 +4,14 @@ import { updateSession } from '@/app/lib/supabase/middleware'
 
 // Define public paths that don't require authentication
 const publicPaths = ['/login', '/auth/callback', '/terms', '/privacy'];
+const crawlerFiles = ['/robots.txt', '/llms.txt', '/sitemap.xml'];
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  if (crawlerFiles.includes(pathname)) {
+    return NextResponse.next();
+  }
   
   // Check if the pathname starts with a locale
   const pathnameHasLocale = locales.some(
@@ -44,6 +49,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Match all paths except static files, api routes, and _next
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|llms.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}; 
+};

@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /en/login
+Disallow: /zh/login
+Disallow: /en/settings
+Disallow: /zh/settings
+Disallow: /en/records/
+Disallow: /zh/records/
+
+Sitemap: https://free-accounting.vercel.app/sitemap.xml
+
