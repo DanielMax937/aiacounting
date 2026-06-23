@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "../globals.css";
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, unstable_setRequestLocale } from 'next-intl/server';
+import { getMessages, setRequestLocale } from 'next-intl/server';
 import { locales } from '../../config';
 import { Nav } from '@/app/components/nav';
 import { Toaster } from 'sonner';
@@ -112,7 +112,7 @@ export default async function RootLayout({
   const locale = params.locale as (typeof locales)[number];
   
   // Enable static rendering
-  unstable_setRequestLocale(locale);
+  setRequestLocale(locale);
   
   const messages = await getMessages();
 

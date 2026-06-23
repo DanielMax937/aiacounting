@@ -1,7 +1,7 @@
 import { LoginForm } from '@/app/components/auth/login-form';
 import { ResponsiveHome } from '@/app/components/responsive-home';
 import { LanguageSwitcher } from '@/app/components/language-switcher';
-import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { TermsAgreementCheckbox } from '@/app/components/auth/terms-agreement-checkbox';
 import { Metadata } from 'next';
@@ -40,7 +40,7 @@ export default async function LoginPage({
   const { locale } = await params;
   const resolvedSearchParams = await searchParams;
   
-  unstable_setRequestLocale(locale);
+  setRequestLocale(locale);
   
   // Use getTranslations instead of useTranslations for server components
   const t = await getTranslations('auth');

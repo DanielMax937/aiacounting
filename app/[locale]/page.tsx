@@ -1,4 +1,4 @@
-import { unstable_setRequestLocale, getTranslations } from 'next-intl/server';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 import { HomeContent } from '@/app/components/home/home-content';
 import { Metadata } from 'next';
 
@@ -39,7 +39,7 @@ export default async function HomePage({ params }: HomePageProps) {
   // In Next.js 15, we need to await the params
   const { locale } = await params;
   
-  unstable_setRequestLocale(locale);
+  setRequestLocale(locale);
   
   // Use getTranslations instead of useTranslations for server components
   const t = await getTranslations('home');
