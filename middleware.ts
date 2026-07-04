@@ -16,6 +16,11 @@ const crawlerFiles = ['/robots.txt', '/llms.txt', '/sitemap.xml'];
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  if (pathname === '/') {
+    return NextResponse.next();
+  }
+
   if (
     crawlerFiles.includes(pathname) ||
     pathname.includes('googledbc7bada3b49d51f.html')

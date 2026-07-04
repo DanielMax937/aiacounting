@@ -4,13 +4,16 @@ import { locales, type Locale } from '../config'
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://free-accounting.vercel.app'
   
-  const routes = [
-    '',
-    '/privacy',
-    '/terms',
-  ]
+  const routes = ['/privacy', '/terms']
   
-  const sitemap: MetadataRoute.Sitemap = []
+  const sitemap: MetadataRoute.Sitemap = [
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 1,
+    },
+  ]
   
   // Add routes for each locale
   locales.forEach((locale: Locale) => {
@@ -18,8 +21,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       sitemap.push({
         url: `${baseUrl}/${locale}${route}`,
         lastModified: new Date(),
-        changeFrequency: route === '' ? 'daily' : 'weekly',
-        priority: route === '' ? 1 : 0.8,
+        changeFrequency: 'weekly',
+        priority: 0.6,
         alternates: {
           languages: Object.fromEntries(
             locales.map((loc: Locale) => [loc, `${baseUrl}/${loc}${route}`])
@@ -27,14 +30,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
         },
       })
     })
-  })
-  
-  // Add root redirect
-  sitemap.push({
-    url: baseUrl,
-    lastModified: new Date(),
-    changeFrequency: 'daily',
-    priority: 1,
   })
   
   return sitemap
