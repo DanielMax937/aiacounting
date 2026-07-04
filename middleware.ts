@@ -33,8 +33,9 @@ export async function middleware(request: NextRequest) {
   // Get the locale from the pathname
   const locale = pathname.split('/')[1];
   
-  // Check if the path is public (login, auth callback, etc.)
-  const isPublicPath = publicPaths.some(path => pathname.includes(`/${locale}${path}`));
+  // Check if the path is public (home, login, auth callback, etc.)
+  const isLocaleHome = locales.includes(locale as (typeof locales)[number]) && pathname === `/${locale}`;
+  const isPublicPath = isLocaleHome || publicPaths.some(path => pathname.includes(`/${locale}${path}`));
   
   // If it's a public path, allow access
   if (isPublicPath) {

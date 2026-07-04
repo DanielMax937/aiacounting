@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://aiacounting.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://free-accounting.vercel.app'),
   alternates: {
     canonical: '/',
     languages: {
@@ -154,4 +154,4 @@ export default async function RootLayout({
       </body>
     </html>
   );
-} 
+}

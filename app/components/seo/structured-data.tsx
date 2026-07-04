@@ -6,7 +6,7 @@ interface StructuredDataProps {
 }
 
 export function StructuredData({ type, locale }: StructuredDataProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://aiacounting.app';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://free-accounting.vercel.app';
   
   const getStructuredData = () => {
     const commonData = {
@@ -103,4 +103,4 @@ export function StructuredData({ type, locale }: StructuredDataProps) {
       }}
     />
   );
-} 
+}
